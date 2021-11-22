@@ -1,4 +1,4 @@
-package src.mua;
+package mua;
 
 public class Data {
     private String value;
@@ -25,7 +25,7 @@ public class Data {
         }
     }
 
-    public boolean isWard(){
+    public boolean isWord(){
         return (value.charAt(0) == '\"');
     }
 
@@ -63,10 +63,11 @@ public class Data {
     }
 
     public String getList(){
-        return this.value.substring(1, value.length() - 1);
+        return this.value.substring(1, value.length()-1);
     }
 
     public double getNumber(){
         return Double.valueOf(value);
     }
+
 }

@@ -1,4 +1,4 @@
-package src.mua;
+package mua;
 
 import java.util.Stack;
 import java.util.TreeMap;
@@ -22,13 +22,20 @@ public class Operation {
 
     public void runInstruction(String instruction){
         instruction = instruction.replace(" :", " thing \"");
+        instruction = instruction.replace("["," [");
         instruction = instruction.trim();
 
         Vector<String> instArray = uu.splitInstruction(instruction);
 
-        for( String inst : instArray){
+        for( String inst : instArray ){
+           // System.out.println(inst);
             if(uu.isOperation(inst)){
                 Integer x = argNum.get(inst);
+                argCount.push(x);
+                argN.push(x);
+                dataStack.push(new Data(inst));
+            }else if( uu.isFunc(inst) ) {
+                Integer x = funcArgNumber(inst);
                 argCount.push(x);
                 argN.push(x);
                 dataStack.push(new Data(inst));
@@ -40,6 +47,8 @@ public class Operation {
                     dataStack.push(tmp);
                 }
             }
+
+
             while( !argCount.empty() && argCount.peek() == 0){
                 argCount.pop();
                 Integer top = argCount.empty() ? -1 : argCount.pop();
@@ -53,6 +62,16 @@ public class Operation {
         }
     }
 
+    public int funcArgNumber(String name){
+        String s = space.get(name).getWord();
+        Vector<String> tmp;
+        tmp = uu.splitInstruction(s.substring(1, s.length()-1));
+        s = tmp.get(0);
+        // System.out.print(s);
+        tmp = uu.splitInstruction(s.substring(1, s.length()-1));
+        return tmp.size();
+    }
+    
     public Data make(Data name, Data value){
         space.input(name.getWord(), value);
         return value;
@@ -97,7 +116,6 @@ public class Operation {
             tmp.add(dataStack.pop());
         }
         
-       
         switch( tmp.lastElement().getOperation()){
             case "make":
                 make(tmp.elementAt(1), tmp.elementAt(0));
@@ -119,10 +137,147 @@ public class Operation {
             case "mod":
                 dataStack.push(calculateOpt(tmp.elementAt(2).getOperation(), tmp.elementAt(1), tmp.elementAt(0)));
                 return 1;
-            default:
+            case "erase":
+                erase(tmp.elementAt(0));
+                return 1;
+            case "eq":
+            case "gt":
+            case "lt":
+                dataStack.push(compareOpt(tmp.elementAt(2).getOperation(), tmp.elementAt(1), tmp.elementAt(0)));
+                return 1;
+            case "isname":
+                dataStack.push(isName(tmp.elementAt(0)));
+                return 1;
+            case "isword":
+            case "islist":
+            case "isbool":
+            case "isempty":
+            case "isnumber":
+                dataStack.push(typeOpt(tmp.elementAt(1).getOperation(), tmp.elementAt(0)));
+                return 1;
+            case "and":
+            case "or":
+                dataStack.push(logicOpt(tmp.elementAt(2).getOperation(), tmp.elementAt(1), tmp.elementAt(0)));
+                return 1;
+            case "if":
+                ifOpt(tmp.elementAt(2).getBool(), tmp.elementAt(1), tmp.elementAt(0));
+                output = tmp.elementAt(0);
+                return 0;
+            case "not":
+                dataStack.push(not(tmp.elementAt(0)));
+                return 1;
+            case "return":
+                output = tmp.elementAt(0);
                 return -1;
+            case "export":
+                space.export(tmp.elementAt(0));
+                return 0;
+            default:
+                return func(dataStack, tmp);
         }
+    }
 
+    public int func(Stack<Data> dataStack, Vector<Data> arg){
+        Data funName, funBody;
+        String f = space.get(arg.lastElement().getWord()).getList();
+        // System.out.println(f);
+        arg.remove(arg.size()-1);
+        Vector<String> funTmp = uu.splitInstruction(f);
+
+        funName = new Data(funTmp.get(0));
+        // System.out.println(funName.getWord());
+
+        funBody = new Data(funTmp.get(1));
+        // System.out.println(funBody.getWord());
+
+        VariableSpace funSpace = new VariableSpace(space.fatherName);
+        funTmp = uu.splitInstruction(funName.getList());
+
+        for( String i : funTmp ){
+            // System.out.println(i + " " + arg.lastElement().getWord());
+
+            funSpace.input(i, arg.lastElement());
+            arg.remove(arg.size()-1);
+        }
+        Operation funOperation = new Operation(funSpace, input);
+        funOperation.output = null;
+        funOperation.runInstruction(funBody.getList());
+        if(funOperation.output != null ){
+            dataStack.push(funOperation.output);
+            return 1;
+        }else 
+            return 0;
+    }
+
+    public void ifOpt(boolean op, Data list1, Data list2 ){
+        String s;
+        if( op )
+            s = list1.getList();
+        else
+            s = list2.getList();
+        runInstruction(s);
+    }
+
+    public Data isName(Data name){
+        if(space.hasName(name.getWord()))
+            return new Data("true");
+        return new Data("false");
+    }
+
+    public Data not(Data value){
+        if ( value.getBool() )
+            return new Data("false");
+        return new Data("true");
+    }
+
+    public Data logicOpt(String op, Data value1, Data value2 ){
+        boolean num1 = value1.getBool();
+        boolean num2 = value2.getBool();
+        switch(op){
+            case "and":
+                return new Data( num1 && num2 );
+            case "or":
+                return new Data( num1 || num2 );
+        }
+        return new Data(true);
+    }
+
+    public Data compareOpt(String op, Data value1, Data value2){
+        
+        if( value1.isNumber() && value2.isNumber() ){
+            switch(op){
+                case "eq":
+                    return new Data(value1.getWord().equals(value2.toString()));
+                case "gt":
+                    return new Data(value1.getWord().compareTo(value2.getWord()) > 0);
+                case "lt":
+                    return new Data(value1.getWord().compareTo(value2.getWord()) < 0);
+            }
+        } 
+        return new Data(false);
+    }
+
+    public Data typeOpt( String op, Data value){
+        switch(op){
+            case "isword":
+                return new Data(value.isWord());
+            case "isnumber":
+                return new Data(value.isNumber());
+            case "islist":
+                return new Data(value.isList());
+            case "isbool":
+                return new Data(value.isBool());
+            case "isempty":
+                if(value.isWord())
+                    return new Data(value.getWord().equals(""));
+                else if(value.isList())
+                    return new Data(value.getList().equals(""));
+        }
+        return new Data(value.isWord());
+    }
+
+    public void erase(Data name){
+        space.erase(name.getWord());
     }
     // public static void main(String[] args){
     //     Read in = new Read();

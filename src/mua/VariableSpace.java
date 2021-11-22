@@ -1,7 +1,6 @@
-package src.mua;
+package mua;
 
 import java.util.TreeMap;
-import javax.xml.stream.events.Namespace;
 
 public class VariableSpace {
     public TreeMap<String, Data> varMap = new TreeMap<>();
@@ -17,6 +16,7 @@ public class VariableSpace {
     VariableSpace(){
         fatherName = this;
         varMap.put("pi", new Data(3.14159));
+        varMap.put("run",new Data("[ [x] [if true :x [] ] ]"));
     }
 
     public boolean hasName(String name){
@@ -31,7 +31,7 @@ public class VariableSpace {
         varMap.put(name, value);
     }
 
-    public void remove(String name){
+    public void erase(String name){
         varMap.remove(name);
     }
 
@@ -51,6 +51,13 @@ public class VariableSpace {
     public void printAll(){
         for( String s: varMap.keySet() ){
             System.out.println(s);
+        }
+    }
+
+    public void export(Data data){
+        if( fatherName != this ){
+            String name = data.getWord();
+            fatherName.varMap.put(name, varMap.get(name));
         }
     }
 }
