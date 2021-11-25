@@ -1,9 +1,8 @@
-package mua;
+package src.mua;
 
 import java.util.Stack;
 import java.util.TreeMap;
 import java.util.Vector;
-import java.util.prefs.BackingStoreException;
 
 public class Util {
     public TreeMap<String, Integer> argNumber = new TreeMap<String, Integer>(){
@@ -33,6 +32,7 @@ public class Util {
             put("not", 1);
             put("if", 3);
             put("return", 1);
+            put("run", 1);
             put("export", 1);
         }
     };

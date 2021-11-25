@@ -1,4 +1,4 @@
-package mua;
+package src.mua;
 
 import java.util.Scanner;
 import java.util.Stack;

@@ -1,4 +1,4 @@
-package mua;
+package src.mua;
 
 import java.util.TreeMap;
 
@@ -16,7 +16,7 @@ public class VariableSpace {
     VariableSpace(){
         fatherName = this;
         varMap.put("pi", new Data(3.14159));
-        varMap.put("run",new Data("[ [x] [if true :x [] ] ]"));
+        // varMap.put("run",new Data("[ [x] [if true :x [] ] ]"));
     }
 
     public boolean hasName(String name){

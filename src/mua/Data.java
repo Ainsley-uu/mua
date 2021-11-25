@@ -1,12 +1,15 @@
-package mua;
+package src.mua;
 
 public class Data {
     private String value;
+    private boolean isword = false;
 
     public Data( String value ){
         this.value = value;
-        if( value.charAt(0) == '"' )
+        if( value.charAt(0) == '"' ){
+            isword = true;
             this.value = this.value.substring(1); 
+        }else isword = false;
     }
 
     public Data( Data data ){
@@ -26,7 +29,7 @@ public class Data {
     }
 
     public boolean isWord(){
-        return (value.charAt(0) == '\"');
+        return isword;
     }
 
     public boolean isNumber(){
@@ -39,6 +42,7 @@ public class Data {
     }
 
     public boolean isBool(){
+        // System.out.println("--------"+value);
         if( value.equals("true") || value.equals("false") )
             return true;
         else
