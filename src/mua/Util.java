@@ -34,6 +34,18 @@ public class Util {
             put("return", 1);
             put("run", 1);
             put("export", 1);
+            put("sentence", 2);
+            put("list", 2);
+            put("join", 2);
+            put("first", 1);
+            put("butfirst", 1);
+            put("butlast", 1);
+            put("save", 1);
+            put("load", 1);
+            put("erall", 0);
+            put("random", 1);
+            put("int", 1);
+            put("sqrt", 1);
         }
     };
 
@@ -60,6 +72,7 @@ public class Util {
         if( s.charAt(0) == '\"' || s.charAt(0) == '(' )
             return false;
         Data re = new Data(s);
+        // System.out.println("\nf:"+re.getWord());
         return !re.isList() && !re.isBool() && !re.isNumber();
     }
 

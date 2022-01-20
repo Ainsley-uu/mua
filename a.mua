@@ -1,0 +1,6 @@
+make "f [ [] [print "a] ]
+make "find [ [lst x] [ if isempty thing "lst [return false] [ if eq first thing "lst thing "x [return true] [return find butfirst thing "lst thing "x] ] ] ]
+make "index [ [lst x] [ if isempty thing "lst [return -1] [ if eq first thing "lst thing "x [return 0] [ make "i index butfirst thing "lst thing "x if eq thing "i -1 [return -1] [return add thing "i 1] ] ] ] ]
+make "length [ [x] [ if isempty thing "x [return 0] [return add length butfirst thing "x 1] ] ]
+make "pi 3.14159
+make "reverse [ [x] [ if isempty thing "x [return thing "x] [ if islist thing "x [return join reverse butfirst thing "x first thing "x] [return word reverse butfirst thing "x first thing "x] ] ] ]

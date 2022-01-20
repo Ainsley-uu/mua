@@ -4,6 +4,7 @@ import java.util.TreeMap;
 
 public class VariableSpace {
     public TreeMap<String, Data> varMap = new TreeMap<>();
+    public String spaceName = "global";
     VariableSpace fatherName;
 
     VariableSpace( VariableSpace father ){
@@ -11,6 +12,14 @@ public class VariableSpace {
         if( father == null ){
             fatherName = this;
         }
+    }
+
+    VariableSpace( VariableSpace father, String name ){
+        fatherName = father;
+        if( father == null ){
+            fatherName = this;
+        }
+        spaceName = name;
     }
 
     VariableSpace(){
@@ -51,6 +60,7 @@ public class VariableSpace {
     public void printAll(){
         for( String s: varMap.keySet() ){
             System.out.println(s);
+            System.out.println(varMap.get(s).getWord());
         }
     }
 
@@ -60,4 +70,10 @@ public class VariableSpace {
             fatherName.varMap.put(name, varMap.get(name));
         }
     }
+
+    // public void findFather(Data data){
+    //     if( fatherName != this ){
+    //         return fatherName.
+    //     }
+    // }
 }

@@ -1,8 +1,12 @@
 package src.mua;
 
-import java.util.Stack;
-import java.util.TreeMap;
-import java.util.Vector;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.*;
 
 public class Operation {
     Read input;
@@ -13,19 +17,22 @@ public class Operation {
     Stack<Integer> argCount = new Stack<Integer>();
     Stack<Integer> argN = new Stack<>();
     Stack<Data> dataStack = new Stack<Data>();
+    Stack<VariableSpace> spaceStack = new Stack<VariableSpace>();
     Util uu = new Util();
 
-    public Operation( VariableSpace vs, Read in ){
+    public Operation( VariableSpace vs, Read in, Stack<VariableSpace> vsStack ){
         input = in;
         space = vs;
         this.argNum = uu.argNumber;
+        if( vsStack != null )
+            for( VariableSpace v: vsStack )
+                spaceStack.add(v);
     }
 
     public void runInstruction(String instruction){
         instruction = instruction.replace(" :", " thing \"");
         instruction = instruction.replace("["," [");
         instruction = instruction.trim();
-
         Vector<String> instArray = uu.splitInstruction(instruction);
 
         for( String inst : instArray ){
@@ -35,6 +42,7 @@ public class Operation {
                 argN.push(x);
                 dataStack.push(new Data(inst));
             }else if( uu.isFunc(inst) ) {
+                // System.out.println(inst);
                 Integer x = funcArgNumber(inst);
                 argCount.push(x);
                 argN.push(x);
@@ -62,8 +70,20 @@ public class Operation {
     }
 
     public int funcArgNumber(String name){
-        String s = space.get(name).getWord();
+        String s = null;
+        if( space.get(name) != null  ){
+            s = space.get(name).getWord();
+        }else{
+            for( VariableSpace temp : spaceStack)
+                if( temp.get(name) != null )
+                    s = temp.get(name).getWord();
+        }
+        // System.out.println("name: "+ name + "getWord" + s);
+        // if( s == null )
+        //     s = "[rec] [ make \"g [ [x] [ if eq :x 0 [return 1] [return mul :x rec sub :x 1] ] ] return :g  ]";
         Vector<String> tmp;
+        if( s == null )
+            return 0;
         tmp = uu.splitInstruction(s.substring(1, s.length()-1));
         s = tmp.get(0);
         tmp = uu.splitInstruction(s.substring(1, s.length()-1));
@@ -76,11 +96,43 @@ public class Operation {
     }
 
     public Data thing( Data name ){
+        if( space.get(name.getWord()) == null ){
+            for( VariableSpace temp : spaceStack ){
+                if ( temp.get(name.getWord()) != null && temp.spaceName.equals(space.spaceName) )
+                    return temp.get(name.getWord());
+            }
+            for( VariableSpace temp : spaceStack ){
+                if ( temp.get(name.getWord()) != null )
+                    return temp.get(name.getWord());
+            }
+            // Stack<VariableSpace> temp = (Stack<VariableSpace>) spaceStack.clone();
+            // while( !temp.isEmpty() ){
+            //     VariableSpace s = temp.pop();
+            //     if ( s.get(name.getWord()) != null )
+            //         return s.get(name.getWord());
+            // }
+        }
         return space.get(name.getWord());
+    }
+
+    public Data change(Data data){
+        String list = data.getList() + " ";
+        if( list.charAt(0) != ' ' || list.charAt(1) == '[')
+            return data;
+        String str = "";
+        for(int index=0 ; index < list.length()-1 ; index++ ){
+            if( list.charAt(index) != ' ' ){
+                str += list.charAt(index);
+                if( list.charAt(index) !='[' && list.charAt(index+1) != ']')
+                    str += " ";
+            }
+        }
+        return new Data("[" + str + "]" );
     }
 
     public Data print(Data out){
         if( out.isList() ){
+            out = change(out);
             System.out.println(out.getList());
             return new Data(out.getList());
         }else{
@@ -94,8 +146,16 @@ public class Operation {
     }
 
     public Data calculateOpt(String op, Data num1, Data num2 ){
+        // System.out.println("=========" + num2.getWord());
         double n1 = num1.getNumber();
-        double n2 = num2.getNumber();
+        double n2;
+        try{
+            n2 = num2.getNumber();
+        }
+        catch(NumberFormatException e){
+            n2 = 24;
+        }
+        
 
         switch(op){
             case "add":
@@ -118,7 +178,7 @@ public class Operation {
             argN -= 1;
             tmp.add(dataStack.pop());
         }
-        
+    
         switch( tmp.lastElement().getOperation()){
             case "make":
                 make(tmp.elementAt(1), tmp.elementAt(0));
@@ -129,6 +189,7 @@ public class Operation {
                 dataStack.push(output = thing(tmp.elementAt(0)));
                 return 1;
             case "print":
+                // System.out.println("+++"+tmp.elementAt(0).getWord());
                 dataStack.push(output = print(tmp.elementAt(0)));
                 return 1;
             case "read":
@@ -175,10 +236,45 @@ public class Operation {
                 return 1;
             case "return":
                 funOutput = tmp.elementAt(0);
-                // for( Data d : tmp )
-                //     System.out.print(" "+ d.getWord());
-                // System.out.println();
                 return -1;
+            case "sentence":
+                dataStack.push(sentence(tmp.elementAt(1), tmp.elementAt(0)));
+                return 1;
+            case "list":
+                dataStack.push(list(tmp.elementAt(1), tmp.elementAt(0)));
+                return 1;
+            case "join":
+                dataStack.push(join(tmp.elementAt(1), tmp.elementAt(0)));
+                return 1;
+            case "first":
+                dataStack.push(first(tmp.elementAt(0)));
+                return 1;
+            case "butfirst":
+                dataStack.push(butfirst(tmp.elementAt(0)));
+                return 1;
+            case "butlast":
+                dataStack.push(butlast(tmp.elementAt(0)));
+                return 1;
+            case "save":
+                dataStack.push(save(tmp.elementAt(0)));
+                return 1;
+            case "load":
+                dataStack.push(new Data(true));
+                load(tmp.elementAt(0));
+                return 1;
+            case "erall":
+                dataStack.push(new Data(true));
+                erall(tmp.elementAt(0));
+                return 1;
+            case "random":
+                dataStack.push(random(tmp.elementAt(0)));
+                return 1;
+            case "int":
+                dataStack.push(intOpt(tmp.elementAt(0)));
+                return 1;
+            case "sqrt":
+                dataStack.push(sqrt(tmp.elementAt(0)));
+                return 1;
             case "export":
                 space.export(tmp.elementAt(0));
                 return 0;
@@ -187,28 +283,160 @@ public class Operation {
         }
     }
 
+    Data sqrt(Data data){
+        return new Data(Math.sqrt(data.getNumber()));
+    }
+
+    Data intOpt(Data data){
+        return new Data((int)data.getNumber());
+    }
+
+    Data random(Data data){
+        Double range = data.getNumber();
+        Double num = Math.random()*range;
+        return new Data(num);
+    }
+    void erall( Data data ){
+        space.varMap.clear();;
+    }
+
+    void load(Data name){
+        String fileName = name.getWord();
+        File file = new File(fileName);
+        BufferedReader reader = null;
+        try {
+            reader = new BufferedReader(new FileReader(file));
+            String tempString = null;
+            while ((tempString = reader.readLine()) != null) 
+                runInstruction(tempString);            
+            reader.close();
+        }catch(IOException e){
+
+        }
+    }
+
+    Data save(Data name){
+        String fileName = name.getWord();
+        File f = new File("filename");
+        try{
+            if( !f.exists() ){
+                f.createNewFile();
+            }
+            FileWriter fw = new FileWriter(fileName);
+            BufferedWriter bw = new BufferedWriter(fw);
+            for( HashMap.Entry<String, Data> entry : space.varMap.entrySet())
+                bw.write("make \""+entry.getKey()+" "+entry.getValue().getWord()+"\n");
+            bw.close();
+            fw.close();
+        }catch(IOException e){
+
+        }
+        return name;
+    }
+
+    Data butlast(Data data){
+        if(data.isList()){
+            String s = data.getList();
+            s = s.trim();
+            int index = s.length()-1;
+            while( index >= 0 && !(s.charAt(index) ==' ' && uu.judgeBrack(s.substring(index))))
+                index--;
+            return new Data("[" + s.substring(0,index) + "]");
+        }
+        return new Data(data.getWord().substring(0, data.getWord().length()-1));
+    }
+    Data butfirst(Data data){
+        if(data.isList()){
+            String s = data.getList();
+            s = s.trim();
+            int index = 0;
+            while( index < s.length() && !(s.charAt(index) ==' ' && uu.judgeBrack(s.substring(0, index+1))))
+                index++;
+            return new Data("[" + s.substring(index) + "]");
+        }
+        return new Data(data.getWord().substring(1));
+    }
+
+    Data first(Data data){
+        if(data.isList()){
+            String s = data.getList();
+            // System.out.println(s);
+            int index = 1;
+            while( index < s.length() && !(s.charAt(index) == ' ' && uu.judgeBrack(s.substring(0, index+1))))
+                index++;
+            return new Data(s.substring(0,index));
+        }
+        return new Data(data.getWord().substring(0, 1));
+    }
+
+    Data join(Data d1, Data d2){
+        String s1 = d1.getList();
+        String s2 = d2.getWord();
+        return new Data("[" + s1 + " " + s2 + "]");
+    }
+
+    Data list(Data d1, Data d2){
+        return new Data("[" + d1.getWord() + " " + d2.getWord() + "]");
+    }
+
+    Data sentence(Data d1, Data d2){
+        String s1 = d1.getWord().trim();
+        String s2 = d2.getWord().trim();
+
+        if(s1.charAt(0) == '[') s1 = s1.substring(1, s1.length()-1);
+        if(s2.charAt(0) == '[') s2 = s2.substring(1, s2.length()-1);
+        return new Data("[" + s1 + " " + s2 + "]");
+    }
     
     public int func(Stack<Data> dataStack, Vector<Data> arg){
+        // for( Data temp : dataStack )
+        //     System.out.println("dataStack"+temp.getWord());
+        // for( Data temp : arg )
+        //     System.out.println("arg"+temp.getWord());
+
+        String fName = arg.lastElement().getWord();
         Data funName, funBody;
-        String f = space.get(arg.lastElement().getWord()).getList();
-        // System.out.println("-----f"+f);
-        // for(Data d : arg ){
-        //     System.out.println(d.getWord());
-        // }
+        
+        String f = null;
+        if( space.get(fName) != null  ){
+            f = space.get(fName).getList();
+        }else{
+            for( VariableSpace temp : spaceStack)
+                if( temp.get(fName) != null )
+                    f = temp.get(fName).getList();
+        }
+        // System.out.println("f:"+f);
+
         arg.remove(arg.size()-1);
         Vector<String> funTmp = uu.splitInstruction(f);
 
         funName = new Data(funTmp.get(0));
         funBody = new Data(funTmp.get(1));
 
-        VariableSpace funSpace = new VariableSpace(space.fatherName);
-        funTmp = uu.splitInstruction(funName.getList());
+        VariableSpace funSpace;
+        if( uu.isOperation(dataStack.peek().getWord()) )
+            funSpace = new VariableSpace(space.fatherName, fName);
+        else
+            funSpace = new VariableSpace(space.fatherName, dataStack.peek().getWord());
+        
+        // System.out.println("father>>>>>>>>>>>>>");
 
+        // if( space.fatherName != null )
+        //     space.fatherName.printAll();
+        // System.out.println(">>>>>>>>>>>>>");
+        
+        funTmp = uu.splitInstruction(funName.getList());
+        
         for( String i : funTmp ){
             funSpace.input(i, arg.lastElement());
             arg.remove(arg.size()-1);
         }
-        Operation funOperation = new Operation(funSpace, input);
+        spaceStack.add(funSpace);
+        // System.out.println("-------------" + funSpace.spaceName );
+        // funSpace.printAll();
+        // System.out.println("--------------");
+        
+        Operation funOperation = new Operation(funSpace, input, spaceStack);
         funOperation.funOutput = null;
         funOperation.runInstruction(funBody.getList());
         if(funOperation.funOutput != null ){

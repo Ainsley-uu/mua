@@ -42,7 +42,6 @@ public class Data {
     }
 
     public boolean isBool(){
-        // System.out.println("--------"+value);
         if( value.equals("true") || value.equals("false") )
             return true;
         else
